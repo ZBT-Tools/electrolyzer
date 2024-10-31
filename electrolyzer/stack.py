@@ -118,14 +118,14 @@ class Stack(FromDictMixin):
     # whether 1st order dynamics should be ignored according to dt size
     ignore_dynamics: bool = field(init=False, default=False)
 
-    def __attrs_post_init__(self) -> None:
+    def a__attrs_post_init__(self) -> None:
         # Stack parameters #
         ####################
 
         # TODO: let's make this more seamless
         self.cell = Cell.from_dict({"cell_area": self.cell_area})
 
-        self.fit_params = self.create_polarization()
+        self.fit_params = self.polarization_fit()
 
         # Stack dynamics #
         ##################
@@ -226,19 +226,35 @@ class Stack(FromDictMixin):
     # ------------------------------------------------------------
     # Polarization model
     # ------------------------------------------------------------
-    def create_polarization(self):
-        interval = 10.0
-        currents = np.arange(0, self.max_current + interval, interval)
+    def create_polarization_data(self,
+                                 current_interval=10.,
+                                 temp_min=40,
+                                 temp_max=60,
+                                 temp_interval=5):
+        """
+
+        """
+        currents = np.arange(0, self.max_current + current_interval, current_interval)
         pieces = []
         prev_temp = self.temperature
-        for temp in np.arange(40, 60 + 5, 5):
+        for temp in np.arange(temp_min, temp_max + temp_interval, temp_interval):
             self.temperature = temp
             powers = self.calc_stack_power(currents)
-            tmp = pd.DataFrame({"current_A": currents, "power_kW": powers})
+            voltages = self.calc_stack_voltage(Idc=currents)
+            tmp = pd.DataFrame({"current_A": currents, "power_kW": powers,"voltage_V": voltages,
+                                "currentdens_Acm-2": currents / self.cell_area,
+                                "cellvoltage_V": voltages / self.n_cells})
             tmp["temp_C"] = temp
             pieces.append(tmp)
         self.temperature = prev_temp
         df = pd.concat(pieces)
+        return df
+
+    def polarization_fit(self):
+        """
+
+        """
+        df = self.create_polarization_data()
 
         # assign initial values and solve a model
         paramsinitial = (1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
@@ -423,6 +439,18 @@ class Stack(FromDictMixin):
         Pdc = Pdc / 1000.0  # [kW]
 
         return Pdc
+
+    def calc_stack_voltage(self, Idc, temperature=None):
+        """
+        Idc [A]: stack current
+        temperature [degC]: stack temperature
+        return :: V [V]: stack voltage
+        """
+        temp = temperature or self.temperature
+        V_cell = self.cell.calc_cell_voltage(Idc, temp)
+        V_stack = V_cell * self.n_cells
+
+        return V_stack
 
     def calc_electrolysis_efficiency(self, Pdc, mfr):
         """
