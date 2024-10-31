@@ -118,7 +118,7 @@ class Stack(FromDictMixin):
     # whether 1st order dynamics should be ignored according to dt size
     ignore_dynamics: bool = field(init=False, default=False)
 
-    def a__attrs_post_init__(self) -> None:
+    def __attrs_post_init__(self) -> None:
         # Stack parameters #
         ####################
 
