@@ -9,6 +9,7 @@ rainflow
 attrs
 jsonschema
 ruamel.yaml
+jupyterlab
 
 # Dev
 pytest

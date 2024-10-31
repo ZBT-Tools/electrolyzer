@@ -17,6 +17,7 @@ stack_dict = {
     "cell_area": cell_area,
     "temperature": temperature,
     "max_current": max_current,
+    "dt":1
 }
 
 elec = Stack.from_dict(stack_dict)
