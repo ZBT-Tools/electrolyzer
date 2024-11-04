@@ -35,8 +35,13 @@ class Stack(FromDictMixin):
     uptime: float = field(init=False, default=0)
 
     cell_voltage: float = field(init=False, default=0)
+    cell_voltage_no_degrad: float = field(init=False, default=0)
 
     # conversion factor from steady to degradation V
+    # ToDo: Documentation
+    # ToDo: Unit: [1/s]
+    # Source: https://iopscience.iop.org/article/10.1149/2.0231915jes
+
     rate_steady: float = field(init=False, default=1.41737929e-10)
 
     # [V] degradation penalty from steady operation only
@@ -59,7 +64,9 @@ class Stack(FromDictMixin):
     )
 
     # conversion factor from rf_track to degradation V
-    rate_fatigue: float = field(init=False, default=3.33330244e-07)
+    # ToDo: Documentation
+    # Source: https://iopscience.iop.org/article/10.1149/2.0231915jes
+    rate_fatigue: float = field(init=True, default=3.33330244e-07)
 
     # [V] degradation from fluctuating power only
     d_f: float = field(init=False, default=0)
@@ -68,6 +75,7 @@ class Stack(FromDictMixin):
     cycle_count: int = field(init=False, default=0)
 
     # conversion from cycle_count to degradation V
+    # ToDo: Documentation
     rate_onoff: float = field(init=False, default=1.47821515e-04)
 
     # [V] degradation from on/off cycling only
@@ -107,7 +115,8 @@ class Stack(FromDictMixin):
     # [s] total time of simulation
     time: float = field(init=False, default=0)
 
-    # [s] time constant https://www.sciencedirect.com/science/article/pii/S0360319911021380 section 3.4 # noqa
+    # [s] time constant
+    # ToDO: https://www.sciencedirect.com/science/article/pii/S0360319911021380 section 3.4 # noqa
     tau: float = 5
 
     stack_state: float = field(init=False, default=0)
@@ -121,8 +130,6 @@ class Stack(FromDictMixin):
     def __attrs_post_init__(self) -> None:
         # Stack parameters #
         ####################
-
-        # TODO: let's make this more seamless
         self.cell = Cell.from_dict({"cell_area": self.cell_area})
 
         self.fit_params = self.polarization_fit()
@@ -174,6 +181,7 @@ class Stack(FromDictMixin):
 
         I = electrolyzer_model((P_in / 1e3, self.temperature), *self.fit_params)
         V = self.cell.calc_cell_voltage(I, self.temperature)
+        self.cell_voltage_no_degrad = V
 
         if self.stack_on:
             power_left = P_in
@@ -184,9 +192,12 @@ class Stack(FromDictMixin):
                 V += self.V_degradation
 
             self.update_temperature(I, V)
+
             self.update_degradation()
+
             power_left -= self.calc_stack_power(I, V) * 1e3
             H2_mfr = self.cell.calc_mass_flow_rate(I) * self.n_cells
+
             self.stack_state, H2_mfr = self.update_dynamics(H2_mfr, self.stack_state)
 
             H2_mass_out = H2_mfr * self.dt
@@ -241,7 +252,7 @@ class Stack(FromDictMixin):
             self.temperature = temp
             powers = self.calc_stack_power(currents)
             voltages = self.calc_stack_voltage(Idc=currents)
-            tmp = pd.DataFrame({"current_A": currents, "power_kW": powers,"voltage_V": voltages,
+            tmp = pd.DataFrame({"current_A": currents, "power_kW": powers, "voltage_V": voltages,
                                 "currentdens_Acm-2": currents / self.cell_area,
                                 "cellvoltage_V": voltages / self.n_cells})
             tmp["temp_C"] = temp
@@ -289,9 +300,16 @@ class Stack(FromDictMixin):
         """
         voltage_signal: the voltage signal from the last 3600 seconds
         return:: voltage_penalty: the degradation penalty
-        """
+
         # based off degradation due to square waves of different frequencies
-        # from results in https://iopscience.iop.org/article/10.1149/2.0231915jes
+        # from results in
+        "Electrolyzer Durability at Low Catalyst Loading and with Dynamic Operation"
+        Shaun M. Alia
+        https://iopscience.iop.org/article/10.1149/2.0231915jes
+
+        Rainflow Counting:
+        https://www.youtube.com/watch?v=kOjahdZHL5g&list=PL5e-0AcdojuTpohwUhoMy1hdl0tJ6KTDT&t=15s
+        """
 
         # nonzero voltage signal so that it does not double count power cycling
         voltage_signal = voltage_signal[np.nonzero(voltage_signal)]
@@ -304,8 +322,14 @@ class Stack(FromDictMixin):
         return self.rate_fatigue * self.rf_track
 
     def calc_steady_degradation(self):
+        """
         # based off degradation due to steady operation
-        # from results in https://iopscience.iop.org/article/10.1149/2.0231915jes
+        # from results in
+        "Electrolyzer Durability at Low Catalyst Loading and with Dynamic Operation"
+        Shaun M. Alia
+
+        https://iopscience.iop.org/article/10.1149/2.0231915jes
+        """
 
         d_s = self.d_s + self.rate_steady * self.cell_voltage * self.dt
 
@@ -320,9 +344,16 @@ class Stack(FromDictMixin):
         self.d_o = d_o
         return d_o
 
-    def update_degradation(self):
-        if self.hour_change:  # only calculate fatigue degradation every hour
-            # fatigue only counts the nonzero voltage fluctuations since transition to
+    def calc_fat_degradation(self):
+        """
+        ToDo: Combine with calc_fatigue_degradation()
+        """
+        # Calculation of "fatigue degradation"
+
+        if self.hour_change:  # bool
+            # only calculate fatigue degradation every hour
+            # fatigue only counts the "nonzero voltage fluctuations"
+            # since transition to
             # and from V = 0 are captured with on/off cycles.
             voltage_signal_nz = self.voltage_signal[np.nonzero(self.voltage_signal)]
 
@@ -341,10 +372,17 @@ class Stack(FromDictMixin):
 
         self.d_f = self.fatigue_history
 
+        return self.fatigue_history
+
+    def update_degradation(self):
+        """
+
+        """
+
         self.V_degradation = (
             self.calc_steady_degradation()
             + self.calc_onoff_degradation()
-            + self.fatigue_history
+            + self.calc_fat_degradation()
         )
 
     def update_temperature(self, I, V):
@@ -353,6 +391,7 @@ class Stack(FromDictMixin):
 
     def update_dynamics(self, H2_mfr_ss, stack_state):
         """
+        ToDo: Documentation
         H2_mfr_ss: steady state mass flow rate
         stack_state: previous mfr state
         return :: next_state: next mfr state
@@ -386,6 +425,11 @@ class Stack(FromDictMixin):
         return [ss_d[0], ss_d[1], ss_d[2], ss_d[3]]
 
     def update_status(self):
+        """
+        Updates
+
+        self.stack_on and self.stack_wating
+        """
         # Change the stack to be truly on if it has waited long enough
         if self.stack_on:
             return

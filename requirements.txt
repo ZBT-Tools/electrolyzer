@@ -10,7 +10,7 @@ attrs
 jsonschema
 ruamel.yaml
 jupyterlab
-
+plotly-resampler
 # Dev
 pytest
 pytest_mock

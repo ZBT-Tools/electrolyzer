@@ -5,14 +5,15 @@ files.
 
 import numpy as np
 import pandas as pd
-
 import electrolyzer.inputs.validation as val
 from electrolyzer import Supervisor
-
 from .optimization import calc_rated_system
 
 
 def _run_electrolyzer_full(modeling_options, power_signal):
+    """
+
+    """
     # Initialize system
     elec_sys = Supervisor.from_dict(modeling_options["electrolyzer"])
 
@@ -24,7 +25,7 @@ def _run_electrolyzer_full(modeling_options, power_signal):
     cycles = np.zeros((elec_sys.n_stacks, len(power_signal)))
     uptime = np.zeros((elec_sys.n_stacks, len(power_signal)))
     current_density = np.zeros((elec_sys.n_stacks, len(power_signal)))
-    p_in = []
+    # p_in = []
 
     # Run electrolyzer simulation
     for i in range(len(power_signal)):
@@ -35,7 +36,7 @@ def _run_electrolyzer_full(modeling_options, power_signal):
         loop_H2, loop_h2_mfr, loop_power_left, curtailed = elec_sys.run_control(
             power_signal[i]
         )
-        p_in.append(power_signal[i] / elec_sys.n_stacks / 1000)
+        # p_in.append(power_signal[i] / elec_sys.n_stacks / 1000)
 
         tot_kg[i] = loop_H2
         curtailment[i] = curtailed / 1000000
@@ -114,7 +115,9 @@ def run_electrolyzer(input_modeling, power_signal, optimize=False):
     Args:
         input_modeling (`str` or `dict`): filepath specifying the YAML config
             file, OR a dict representing a validated YAML config.
-        power_signal (`list`): An array representing power input
+
+        power_signal (`list`): An array representing power input [W]
+
         optimize (`bool`, optional): Whether the run will be based on an optimization.
             For now, this entails tuning a system to a desired system rating, running
             the simulation, and returning a simplified result for optimization runs.
@@ -143,3 +146,102 @@ def run_electrolyzer(input_modeling, power_signal, optimize=False):
         return _run_electrolyzer_opt(modeling_options, power_signal)
 
     return _run_electrolyzer_full(modeling_options, power_signal)
+
+
+def run_electrolyzer_zbt(input,
+                         power_signal: list):
+    """
+    Adjusted function for running single stack
+    """
+
+    err_msg = "Model input must be a str or dict object"
+    assert isinstance(
+        input,
+        (
+            str,
+            dict,
+        ),
+    ), err_msg
+
+    if isinstance(input, str):
+        # Parse/validate yaml configuration
+        modeling_options = val.load_modeling_yaml(input)
+    else:
+        modeling_options = input
+
+    dt = float(modeling_options["electrolyzer"]["dt"])
+
+    # Initialize system
+    elec_sys = Supervisor.from_dict(modeling_options["electrolyzer"])
+
+    # Define output variables
+    time_h = np.zeros((len(power_signal)))
+    kg_rate = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    degradation = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    deg_steady = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    deg_fatigue = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    deg_onoff = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    curtailment = np.zeros((len(power_signal)))
+    tot_kg = np.zeros((len(power_signal)))
+    cycles = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    uptime = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    current_density = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    cell_voltage = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    cell_voltage_no_degrad = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    # p_in = []
+
+    # Run electrolyzer simulation
+    for i in range(len(power_signal)):
+        loop_H2, loop_h2_mfr, loop_power_left, curtailed = elec_sys.run_control(
+            power_signal[i]
+        )
+        time_h[i] = i * dt / 3600
+        tot_kg[i] = loop_H2
+        curtailment[i] = curtailed / 1000000
+        for j in range(elec_sys.n_stacks):
+            stack = elec_sys.stacks[j]
+            kg_rate[j, i] = loop_h2_mfr[j]
+            degradation[j, i] = stack.V_degradation
+            deg_steady[j, i] = stack.d_s
+            deg_fatigue[j, i] = stack.d_f
+            deg_onoff[j, i] = stack.d_o
+            cycles[j, i] = stack.cycle_count
+            uptime[j, i] = stack.uptime
+            current_density[j, i] = stack.I / stack.cell.cell_area
+            cell_voltage[j, i] = stack.cell_voltage
+            cell_voltage_no_degrad[j, i] = stack.cell_voltage_no_degrad
+
+    # Collect results into a DataFrame
+    results_df = pd.DataFrame(
+        {"time_h": time_h,
+         "power_signal": power_signal,
+         "curtailment": curtailment,
+         "kg_rate": tot_kg,
+         }
+    )
+
+    # for efficiency reasons, create a df for each stack, then concat all at the end
+    stack_dfs = []
+
+    for i, stack in enumerate(elec_sys.stacks):
+        id = i + 1
+        stack_df = pd.DataFrame(
+            {
+                f"stack_{id}_deg": degradation[i, :],
+                f"stack_{id}_deg_steady": deg_steady[i, :],
+                f"stack_{id}_deg_fatigue": deg_fatigue[i, :],
+                f"stack_{id}_deg_onoff": deg_onoff[i, :],
+                f"stack_{id}_fatigue": stack.fatigue_history,
+                f"stack_{id}_cycles": cycles[i, :],
+                f"stack_{id}_uptime": uptime[i, :],
+                f"stack_{id}_kg_rate": kg_rate[i, :],
+                f"stack_{id}_curr_density": current_density[i, :],
+                f"stack_{id}_cell_voltage": cell_voltage[i, :],
+                f"stack_{id}_cell_voltage_no_degrad": cell_voltage_no_degrad[i, :],
+            }
+        )
+        stack_dfs.append(stack_df)
+
+    results_df = pd.concat([results_df, *stack_dfs], axis=1)
+
+    return elec_sys, results_df

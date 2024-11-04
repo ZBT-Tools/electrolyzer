@@ -11,4 +11,4 @@ from .lcoh import LCOH
 from .stack import Stack
 from .supervisor import Supervisor
 from .glue_code.run_lcoh import run_lcoh
-from .glue_code.run_electrolyzer import run_electrolyzer
+from .glue_code.run_electrolyzer import run_electrolyzer, run_electrolyzer_zbt

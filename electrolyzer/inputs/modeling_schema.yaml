@@ -71,6 +71,11 @@ properties:
                         type: boolean
                         default: True
                         description: Toggle whether degradation is applied to the Stack operation
+                    rate_fatigue:
+                        type: number
+                        description: rate fatigue
+                        unit: tbd
+
 
             control:
                 type: object
