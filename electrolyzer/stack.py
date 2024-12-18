@@ -39,7 +39,7 @@ class Stack(FromDictMixin):
 
     # conversion factor from steady to degradation V
     # ToDo: Documentation
-    # ToDo: Unit: [1/s]
+    # ToDo: 1/t/U_Cell [1/s/V_cell] (?)
     # Source: https://iopscience.iop.org/article/10.1149/2.0231915jes
 
     rate_steady: float = field(init=False, default=1.41737929e-10)
