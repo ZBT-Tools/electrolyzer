@@ -65,6 +65,9 @@ def _run_electrolyzer_full(modeling_options, power_signal):
         stack_df = pd.DataFrame(
             {
                 f"stack_{id}_deg": degradation[i, :],
+                f"stack_{id}_deg_steady": deg_steady[i, :],
+                f"stack_{id}_deg_fatigue": deg_fatigue[i, :],
+                f"stack_{id}_deg_onoff": deg_onoff[i, :],
                 f"stack_{id}_fatigue": stack.fatigue_history,
                 f"stack_{id}_cycles": cycles[i, :],
                 f"stack_{id}_uptime": uptime[i, :],
