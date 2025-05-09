@@ -81,6 +81,9 @@ def reversible_performance(i):
 
 
 def calc_V_act_a(theta, i):
+    """
+    
+    """
     V_act_a = ((R * T_anode) / (alpha_a * F)) * np.arcsinh(
         i / (2 * ((1 - theta) * i_0_Ir_III + theta * i_0_Ir_V)))
     return V_act_a
@@ -117,6 +120,9 @@ def calc_r_red(theta, eta_Ir):
 
 
 def calc_rate(t, theta, i):
+    """
+    Calculation of Ir Oxidation state change rate
+    """
     if isinstance(theta,numpy.ndarray):
         if len(theta)>1:
             raise Exception
@@ -135,76 +141,76 @@ def calc_rate(t, theta, i):
 
 if __name__ == "__main__":
 
-    # # # Different starting thetas for constant i
-    # # # ----------------------------------------------------------------------------------------------
-    # current_density = 2 # A/cm2
-    # fig, axs = plt.subplots(2)
-    # fig.suptitle(
-    #     f'Different Ir-Oxidation states for constant current density {current_density} A/cm2')
-    # for th in np.arange(0, 1, 0.2):
-    #     result = solve_ivp(calc_rate, (0, 60 * 60 * 24), [th], args=(current_density,))
-    #     V_act_a = calc_V_act_a(theta=result.y[0, :], i=current_density)
-    #     axs[0].plot(result.t, result.y[0, :], label=f"th={th}")
-    #     axs[1].plot(result.t, V_act_a, label=f"th={th}")
-    # axs[0].set_title('Theta')
-    # axs[1].set_title('V_act_a [V]')
-    # #plt.legend()
-    # # plt.show()
-    #
-    # #
-    # # Manual integration
+    # # Different starting thetas for constant i
     # # ----------------------------------------------------------------------------------------------
-    # t=[0]
-    # theta=[0]
-    # for ts in range(60 * 60 * 24):
-    #     t.append(ts+1)
-    #     rate = calc_rate(t=1, theta=theta[-1],i=current_density)
-    #     theta.append(theta[-1]+rate)
-    # axs[0].plot(t, theta, label=f"manual, th=0")
-    # axs[0].legend()
+    current_density = 2 # A/cm2
+    fig, axs = plt.subplots(2)
+    fig.suptitle(
+        f'Different Ir-Oxidation states for constant current density {current_density} A/cm2')
+    for th in np.arange(0, 1, 0.2):
+        result = solve_ivp(calc_rate, (0, 60 * 60 * 24), [th], args=(current_density,))
+        V_act_a = calc_V_act_a(theta=result.y[0, :], i=current_density)
+        axs[0].plot(result.t, result.y[0, :], label=f"th={th}")
+        axs[1].plot(result.t, V_act_a, label=f"th={th}")
+    axs[0].set_title('Theta')
+    axs[1].set_title('V_act_a [V]')
+    #plt.legend()
     # plt.show()
 
-
-    # Manual integration with time dependent i
-    # ----------------------------------------------------------------------------------------------
-    fig, axs = plt.subplots(4)
-    # current_density = [2] * 60 * 60 * 24 * 30
-    #                    + \
-    #                    [2] * 60 * 60 * 1 +  \
-    #                     [2] *60 * 60 * 24)
     #
-    current_density = [2] * 60 * 60 * 24   + \
-                       [0] * 60 * 5  +  \
-                        [2] *60 * 60* 24
-
-
+    # Manual integration
+    # ----------------------------------------------------------------------------------------------
     t=[0]
-    theta=[0.8]
-    rate = [0]
-    r_ox=[0]
-    r_red=[0]
-    V_act_a = [0]
-    for cd in current_density:
-        t.append(t[-1]+1)
-        r_ox.append(calc_r_ox(theta=theta[-1],
-                              eta_Ir=calc_eta_Ir(calc_V_act_a(theta=theta[-1], i=cd), theta[-1])))
-        r_red.append(calc_r_red(theta=theta[-1],
-                                eta_Ir=calc_eta_Ir(calc_V_act_a(theta=theta[-1], i=cd), theta[-1])))
-        local_rate = calc_rate(t=1, theta=theta[-1],i=cd)
-        rate.append(local_rate)
-        theta.append(theta[-1]+local_rate)
-        V_act_a.append(calc_V_act_a(theta=theta[-1], i=cd))
-
-    current_density.insert(0,2)
-    axs[0].plot(t, current_density, label=f"manual")
-    axs[1].plot(t, theta, label=f"theta")
-    axs[2].plot(t, r_ox, label=f"r_ox")
-    axs[2].plot(t, r_red, label=f"r_red")
-    axs[2].plot(t, rate, label=f"Rate")
-    axs[3].plot(t, V_act_a, label=f"V_act_a")
-    axs[0].set_title('Current density')
-    axs[1].set_title('Theta')
-    axs[2].set_title('Red and ox rates')
-    axs[3].set_title('V_act_a')
-    axs[2].legend()
+    theta=[0]
+    for ts in range(60 * 60 * 24):
+        t.append(ts+1)
+        rate = calc_rate(t=1, theta=theta[-1],i=current_density)
+        theta.append(theta[-1]+rate)
+    axs[0].plot(t, theta, label=f"manual, th=0")
+    axs[0].legend()
     plt.show()
+
+
+    # # Manual integration with time dependent i
+    # # ----------------------------------------------------------------------------------------------
+    # fig, axs = plt.subplots(4)
+    # # current_density = [2] * 60 * 60 * 24 * 30
+    # #                    + \
+    # #                    [2] * 60 * 60 * 1 +  \
+    # #                     [2] *60 * 60 * 24)
+    # #
+    # current_density = [2] * 60 * 60 * 24   + \
+    #                    [0] * 60 * 5  +  \
+    #                     [2] *60 * 60* 24
+    #
+    #
+    # t=[0]
+    # theta=[0.8]
+    # rate = [0]
+    # r_ox=[0]
+    # r_red=[0]
+    # V_act_a = [0]
+    # for cd in current_density:
+    #     t.append(t[-1]+1)
+    #     r_ox.append(calc_r_ox(theta=theta[-1],
+    #                           eta_Ir=calc_eta_Ir(calc_V_act_a(theta=theta[-1], i=cd), theta[-1])))
+    #     r_red.append(calc_r_red(theta=theta[-1],
+    #                             eta_Ir=calc_eta_Ir(calc_V_act_a(theta=theta[-1], i=cd), theta[-1])))
+    #     local_rate = calc_rate(t=1, theta=theta[-1],i=cd)
+    #     rate.append(local_rate)
+    #     theta.append(theta[-1]+local_rate)
+    #     V_act_a.append(calc_V_act_a(theta=theta[-1], i=cd))
+    #
+    # current_density.insert(0,2)
+    # axs[0].plot(t, current_density, label=f"manual")
+    # axs[1].plot(t, theta, label=f"theta")
+    # axs[2].plot(t, r_ox, label=f"r_ox")
+    # axs[2].plot(t, r_red, label=f"r_red")
+    # axs[2].plot(t, rate, label=f"Rate")
+    # axs[3].plot(t, V_act_a, label=f"V_act_a")
+    # axs[0].set_title('Current density')
+    # axs[1].set_title('Theta')
+    # axs[2].set_title('Red and ox rates')
+    # axs[3].set_title('V_act_a')
+    # axs[2].legend()
+    # plt.show()

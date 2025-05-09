@@ -66,7 +66,7 @@ class Stack(FromDictMixin):
     # conversion factor from rf_track to degradation V
     # ToDo: Documentation
     # Source: https://iopscience.iop.org/article/10.1149/2.0231915jes
-    rate_fatigue: float = field(init=True, default=3.33330244e-07)
+    rate_fatigue: float = field(init=True, default=3.33330244e-07*50)
 
     # [V] degradation from fluctuating power only
     d_f: float = field(init=False, default=0)
