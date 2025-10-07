@@ -10,6 +10,12 @@ electrolyzer:
         temperature: 60
         n_cells: 100
         stack_rating_kW: 500
+        fit_current_interval: .1
+        fit_temp_interval: 5
+        fit_temp_min: 50
+        fit_temp_max: 70
+        fact_fit_act: 1
+        fact_fit_ohm: 1
     control:
         n_stacks: 7
         control_type: BaselineDeg # default

@@ -20,6 +20,9 @@ def _run_electrolyzer_full(modeling_options, power_signal):
     # Define output variables
     kg_rate = np.zeros((elec_sys.n_stacks, len(power_signal)))
     degradation = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    deg_steady = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    deg_fatigue = np.zeros((elec_sys.n_stacks, len(power_signal)))
+    deg_onoff = np.zeros((elec_sys.n_stacks, len(power_signal)))
     curtailment = np.zeros((len(power_signal)))
     tot_kg = np.zeros((len(power_signal)))
     cycles = np.zeros((elec_sys.n_stacks, len(power_signal)))
@@ -44,6 +47,9 @@ def _run_electrolyzer_full(modeling_options, power_signal):
             stack = elec_sys.stacks[j]
             kg_rate[j, i] = loop_h2_mfr[j]
             degradation[j, i] = stack.V_degradation
+            deg_steady[j, i] = stack.d_s
+            deg_fatigue[j, i] = stack.d_f
+            deg_onoff[j, i] = stack.d_o
             cycles[j, i] = stack.cycle_count
             uptime[j, i] = stack.uptime
             current_density[j, i] = stack.I / stack.cell.cell_area

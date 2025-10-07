@@ -38,6 +38,8 @@ class Cell(FromDictMixin):
     ###################
 
     cell_area: float
+    fact_fit_ohm: float
+    fact_fit_act: float
 
     # If we rework this class to be even more generic, we can have these be specified
     # as configuration params
@@ -105,10 +107,10 @@ class Cell(FromDictMixin):
         alpha_c = 0.5
 
         # anode exchange current density TODO: update to be f(T)?
-        i_0_a = 2e-7
+        i_0_a = self.fact_fit_act * 2e-7
 
         # cathode exchange current density TODO: update to be f(T)?
-        i_0_c = 2e-3
+        i_0_c = self.fact_fit_act * 2e-3
 
         # derived from Butler-Volmer eqs
         V_act_a = ((R * T_anode) / (alpha_a * F)) * np.arcsinh(i / (2 * i_0_a))
@@ -155,7 +157,7 @@ class Cell(FromDictMixin):
         # A_path = (m2) cross-sectional area of conductor path
         # R_ohmic_elec = ((rho*l_path)/A_path)
 
-        V_ohmic = i * (R_ohmic_elec + R_ohmic_ionic)
+        V_ohmic = i * (R_ohmic_elec + R_ohmic_ionic) * self.fact_fit_ohm
 
         return V_ohmic
 
@@ -193,7 +195,7 @@ class Cell(FromDictMixin):
         V_ohm = self.calc_ohmic_overpotential(i, temperature)
         V_conc = self.calc_concentration_overpotential()
 
-        return (V_act_a, V_act_c, V_ohm, V_conc)
+        return V_act_a, V_act_c, V_ohm, V_conc
 
     def calc_cell_voltage(self, I, temperature):
         """

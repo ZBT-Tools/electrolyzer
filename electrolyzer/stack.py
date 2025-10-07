@@ -19,6 +19,12 @@ class Stack(FromDictMixin):
     temperature: float
     n_cells: int
     dt: float
+    fit_current_interval: float
+    fit_temp_min: float
+    fit_temp_max: float
+    fit_temp_interval: float
+    fact_fit_act: float
+    fact_fit_ohm: float
 
     min_power: float = None
     stack_rating_kW: float = None
@@ -66,7 +72,7 @@ class Stack(FromDictMixin):
     # conversion factor from rf_track to degradation V
     # ToDo: Documentation
     # Source: https://iopscience.iop.org/article/10.1149/2.0231915jes
-    rate_fatigue: float = field(init=True, default=3.33330244e-07*50)
+    rate_fatigue: float = field(init=True, default=3.33330244e-07 * 2)
 
     # [V] degradation from fluctuating power only
     d_f: float = field(init=False, default=0)
@@ -130,7 +136,9 @@ class Stack(FromDictMixin):
     def __attrs_post_init__(self) -> None:
         # Stack parameters #
         ####################
-        self.cell = Cell.from_dict({"cell_area": self.cell_area})
+        self.cell = Cell.from_dict({"cell_area": self.cell_area,
+                                    "fact_fit_act": self.fact_fit_act,
+                                    "fact_fit_ohm": self.fact_fit_ohm})
 
         self.fit_params = self.polarization_fit()
 
@@ -159,8 +167,7 @@ class Stack(FromDictMixin):
 
         # [kW] nameplate power rating
         self.stack_rating_kW = self.stack_rating_kW or self.calc_stack_power(
-            self.max_current
-        )
+            self.max_current)
 
         self.stack_rating = self.stack_rating_kW * 1e3  # [W] nameplate rating
 
@@ -224,7 +231,7 @@ class Stack(FromDictMixin):
         # check if it is an hour to decide whether to calculate fatigue
         hourly_temp = self.hourly_counter
         self.time += self.dt
-        self.hourly_counter = self.time // 3600
+        self.hourly_counter = self.time // 1800 # 3600
         if hourly_temp != self.hourly_counter:
             self.hour_change = True
             self.voltage_signal = self.voltage_history
@@ -237,18 +244,16 @@ class Stack(FromDictMixin):
     # ------------------------------------------------------------
     # Polarization model
     # ------------------------------------------------------------
-    def create_polarization_data(self,
-                                 current_interval=10.,
-                                 temp_min=40,
-                                 temp_max=60,
-                                 temp_interval=5):
+    def create_polarization_data(self):
         """
 
         """
-        currents = np.arange(0, self.max_current + current_interval, current_interval)
+        currents = np.arange(0, self.max_current + self.fit_current_interval,
+                             self.fit_current_interval)
         pieces = []
         prev_temp = self.temperature
-        for temp in np.arange(temp_min, temp_max + temp_interval, temp_interval):
+        for temp in np.arange(self.fit_temp_min, self.fit_temp_max + self.fit_temp_interval,
+                              self.fit_temp_interval):
             self.temperature = temp
             powers = self.calc_stack_power(currents)
             voltages = self.calc_stack_voltage(Idc=currents)

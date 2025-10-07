@@ -11,20 +11,34 @@ n_cells = 100  # number of cells in stack
 cell_area = 1000  # cell area, cm^2
 temperature = 60  # temperature
 max_current = 2000
+fact_fit_act = 100
+fact_fit_ohm = 100
+fit_current_interval = .1
+fit_temp_interval = 5
+fit_temp_min = 50
+fit_temp_max = 70
+
 
 stack_dict = {
     "n_cells": n_cells,
     "cell_area": cell_area,
     "temperature": temperature,
     "max_current": max_current,
-    "dt":1
+    "dt": 1,
+    "fact_fit_act": fact_fit_act,
+    "fact_fit_ohm": fact_fit_ohm,
+    "fit_current_interval": fit_current_interval,
+    "fit_temp_interval": fit_temp_interval,
+    "fit_temp_min": fit_temp_min,
+    "fit_temp_max": fit_temp_max,
 }
 
 elec = Stack.from_dict(stack_dict)
 
 cur = np.linspace(0, 2500, 100)
 p_fit = elec.calc_stack_power(
-    electrolyzer_model((elec.calc_stack_power(cur), temperature), *elec.fit_params)
+    electrolyzer_model((elec.calc_stack_power(cur),
+                        temperature), *elec.fit_params)
 )
 p_actual = elec.calc_stack_power(cur)
 voltage = elec.cell.calc_cell_voltage(cur, temperature)

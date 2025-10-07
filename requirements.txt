@@ -12,6 +12,7 @@ ruamel.yaml
 jupyterlab
 plotly-resampler
 solar-data-tools
+openpyxl
 # Dev
 pytest
 pytest_mock
